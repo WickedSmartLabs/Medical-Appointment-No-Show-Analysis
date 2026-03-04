@@ -1,0 +1,248 @@
+<html>
+<head>
+<title>Investigate_a_Dataset.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #5f826b; font-style: italic;}
+.s5 { color: #6aab73;}
+.ls0 { height: 1px; border-width: 0; color: #43454a; background-color:#43454a}
+</style>
+</head>
+<body bgcolor="#191a1c">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Investigate_a_Dataset.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% md 
+# Project: Investigate a Dataset – Medical Appointment No-Shows 
+ 
+## Table of Contents 
+&lt;ul&gt; 
+&lt;li&gt;&lt;a href=&quot;#intro&quot;&gt;Introduction&lt;/a&gt;&lt;/li&gt; 
+&lt;li&gt;&lt;a href=&quot;#wrangling&quot;&gt;Data Wrangling&lt;/a&gt;&lt;/li&gt; 
+&lt;li&gt;&lt;a href=&quot;#eda&quot;&gt;Exploratory Data Analysis&lt;/a&gt;&lt;/li&gt; 
+&lt;li&gt;&lt;a href=&quot;#conclusions&quot;&gt;Conclusions&lt;/a&gt;&lt;/li&gt; 
+&lt;/ul&gt; <hr class="ls0">#%% md 
+&lt;a id='intro'&gt;&lt;/a&gt; 
+## Introduction 
+ 
+### Dataset Description  
+ 
+The dataset used in this analysis contains information on approximately 100,000 medical appointments in Brazil. Each row in the dataset represents a single medical appointment and includes information about the patient, the scheduling of the appointment, and whether the patient attended the appointment. 
+ 
+The dataset includes the following columns: 
+ 
+- **PatientId**: A unique identifier for each patient. 
+ 
+- **AppointmentID**: A unique identifier for each appointment. 
+ 
+- **Gender**: The gender of the patient. 
+ 
+- **ScheduledDay**: The date and time when the appointment was scheduled. 
+ 
+- **AppointmentDay**: The date of the actual appointment. 
+ 
+- **Age**: The age of the patient at the time of the appointment. 
+ 
+- **Neighbourhood**: The location of the hospital where the appointment took place. 
+ 
+- **Scholarship**: Indicates whether the patient is enrolled in the Brazilian welfare program Bolsa Família (1 = yes, 0 = no). 
+ 
+- **Hipertension**: Indicates whether the patient has hypertension (1 = yes, 0 = no). 
+ 
+- **Diabetes**: Indicates whether the patient has diabetes (1 = yes, 0 = no). 
+ 
+- **Alcoholism**: Indicates whether the patient has a history of alcoholism (1 = yes, 0 = no). 
+ 
+- **Handcap**: Indicates whether the patient has a disability. 
+ 
+- **SMS_received**: Indicates whether the patient received an SMS reminder for the appointment (1 = yes, 0 = no). 
+ 
+- **No-show**: Indicates whether the patient missed the appointment. A value of “Yes” means the patient did not show up, while “No” means the patient attended the appointment. 
+ 
+This dataset consists of a single table and does not require merging with additional data sources. 
+ 
+### Question(s) for Analysis 
+This investigation focuses on understanding factors associated with patients missing their scheduled medical appointments. 
+ 
+The primary research question is: 
+ 
+- Which factors are associated with a higher likelihood of a patient not showing up for a scheduled medical appointment? 
+ 
+To explore this question, the analysis will examine the relationship between appointment attendance and the following independent variables: 
+ 
+- Patient age 
+ 
+- Scholarship status (participation in the Bolsa Família program) 
+ 
+- Whether the patient received an SMS appointment reminder 
+ 
+- The time delay between scheduling and the appointment date 
+ 
+These variables were selected because they represent patient demographics, socioeconomic factors, and appointment-related characteristics that may influence attendance behavior. <hr class="ls0">#%% 
+</span><span class="s1">import </span><span class="s0">numpy </span><span class="s1">as </span><span class="s0">np</span>
+<span class="s1">import </span><span class="s0">pandas </span><span class="s1">as </span><span class="s0">pd</span>
+<span class="s1">import </span><span class="s0">matplotlib</span><span class="s2">.</span><span class="s0">pyplot </span><span class="s1">as </span><span class="s0">plt</span>
+
+<span class="s2">%</span><span class="s0">matplotlib inline</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1">def </span><span class="s0">format_bar_plot</span><span class="s2">(</span><span class="s0">series</span><span class="s2">, </span><span class="s0">title</span><span class="s2">, </span><span class="s0">xlabel</span><span class="s2">, </span><span class="s0">ylabel</span><span class="s2">, </span><span class="s0">rotation</span><span class="s2">=</span><span class="s3">0</span><span class="s2">):</span>
+    <span class="s4">&quot;&quot;&quot; 
+    Create a consistently formatted bar plot. 
+    &quot;&quot;&quot;</span>
+    <span class="s0">series</span><span class="s2">.</span><span class="s0">plot</span><span class="s2">(</span><span class="s0">kind</span><span class="s2">=</span><span class="s5">'bar'</span><span class="s2">)</span>
+    <span class="s0">plt</span><span class="s2">.</span><span class="s0">title</span><span class="s2">(</span><span class="s0">title</span><span class="s2">)</span>
+    <span class="s0">plt</span><span class="s2">.</span><span class="s0">xlabel</span><span class="s2">(</span><span class="s0">xlabel</span><span class="s2">)</span>
+    <span class="s0">plt</span><span class="s2">.</span><span class="s0">ylabel</span><span class="s2">(</span><span class="s0">ylabel</span><span class="s2">)</span>
+    <span class="s1">if </span><span class="s0">rotation</span><span class="s2">:</span>
+        <span class="s0">plt</span><span class="s2">.</span><span class="s0">xticks</span><span class="s2">(</span><span class="s0">rotation</span><span class="s2">=</span><span class="s0">rotation</span><span class="s2">)</span>
+    <span class="s0">plt</span><span class="s2">.</span><span class="s0">tight_layout</span><span class="s2">()</span>
+    <span class="s0">plt</span><span class="s2">.</span><span class="s0">show</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+&lt;a id='wrangling'&gt;&lt;/a&gt; 
+## Data Wrangling 
+ 
+The dataset was cleaned by standardizing column names, converting categorical variables to numeric formats, transforming date fields to datetime objects, removing invalid age values, and creating a derived wait-time feature. These steps ensure the data is consistent and suitable for exploratory analysis. 
+ 
+ 
+### General Properties 
+The dataset contains over 100,000 appointment records and 14 variables. The data includes a mix of numerical and categorical variables. Initial inspection shows no missing values across columns. 
+ 
+Several variables such as ScheduledDay, AppointmentDay, and No-show are stored as object types and will require transformation before analysis. The Age variable will require further inspection to identify potential invalid values. <hr class="ls0">#%% 
+df </span><span class="s2">= </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">read_csv</span><span class="s2">(</span><span class="s5">'noshowappointments-kagglev2-may-2016.csv'</span><span class="s2">)</span>
+<span class="s0">df</span><span class="s2">.</span><span class="s0">head</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">shape</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">columns</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">info</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">describe</span><span class="s2">(</span><span class="s0">include</span><span class="s2">=</span><span class="s5">'all'</span><span class="s2">)</span><hr class="ls0"><span class="s0">#%% md 
+</span>
+<span class="s0">### Data Cleaning Overview 
+ 
+In this section, the dataset is prepared for analysis. Cleaning steps include standardizing column names, converting variables to appropriate data types, addressing invalid values, and creating derived features required for exploratory analysis. Each step is documented and justified below. 
+ 
+ <hr class="ls0">#%% md 
+### Column Renaming 
+ 
+Column names were standardized using lowercase letters and underscores to improve readability and maintain consistency. This also helps prevent syntax issues during analysis. <hr class="ls0">#%% 
+df </span><span class="s2">= </span><span class="s0">df</span><span class="s2">.</span><span class="s0">rename</span><span class="s2">(</span><span class="s0">columns</span><span class="s2">={</span>
+    <span class="s5">'PatientId'</span><span class="s2">: </span><span class="s5">'patient_id'</span><span class="s2">,</span>
+    <span class="s5">'AppointmentID'</span><span class="s2">: </span><span class="s5">'appointment_id'</span><span class="s2">,</span>
+    <span class="s5">'ScheduledDay'</span><span class="s2">: </span><span class="s5">'scheduled_day'</span><span class="s2">,</span>
+    <span class="s5">'AppointmentDay'</span><span class="s2">: </span><span class="s5">'appointment_day'</span><span class="s2">,</span>
+    <span class="s5">'No-show'</span><span class="s2">: </span><span class="s5">'no_show'</span><span class="s2">,</span>
+    <span class="s5">'Hipertension'</span><span class="s2">: </span><span class="s5">'hypertension'</span><span class="s2">,</span>
+    <span class="s5">'Handcap'</span><span class="s2">: </span><span class="s5">'handicap'</span><span class="s2">,</span>
+    <span class="s5">'SMS_received'</span><span class="s2">: </span><span class="s5">'sms_received'</span>
+<span class="s2">})</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">columns</span><hr class="ls0"><span class="s0">#%% md 
+### No-show Variable Encoding 
+ 
+The `no_show` column was originally encoded as string values (“Yes” and “No”). This variable was converted to a numeric format where 1 represents a missed appointment and 0 represents attendance to enable numerical analysis. <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">] = </span><span class="s0">df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">map</span><span class="s2">({</span><span class="s5">'Yes'</span><span class="s2">: </span><span class="s3">1</span><span class="s2">, </span><span class="s5">'No'</span><span class="s2">: </span><span class="s3">0</span><span class="s2">})</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">value_counts</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+### Datetime Conversion 
+ 
+The `scheduled_day` and `appointment_day` columns are currently stored as object (string) types. These columns are converted to datetime format to enable time-based calculations and analysis, such as computing the delay between scheduling and appointment dates. <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'scheduled_day'</span><span class="s2">] = </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">to_datetime</span><span class="s2">(</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'scheduled_day'</span><span class="s2">])</span>
+<span class="s0">df</span><span class="s2">[</span><span class="s5">'appointment_day'</span><span class="s2">] = </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">to_datetime</span><span class="s2">(</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'appointment_day'</span><span class="s2">])</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">[[</span><span class="s5">'scheduled_day'</span><span class="s2">, </span><span class="s5">'appointment_day'</span><span class="s2">]].</span><span class="s0">dtypes</span><hr class="ls0"><span class="s0">#%% md 
+### Age Validation 
+ 
+The `Age` variable was inspected for invalid values. Since age cannot be negative, records with negative age values were removed from the dataset to ensure accurate analysis. <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'Age'</span><span class="s2">].</span><span class="s0">describe</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s2">(</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'Age'</span><span class="s2">] &lt; </span><span class="s3">0</span><span class="s2">).</span><span class="s0">sum</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df </span><span class="s2">= </span><span class="s0">df</span><span class="s2">[</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'Age'</span><span class="s2">] &gt;= </span><span class="s3">0</span><span class="s2">].</span><span class="s0">copy</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">[</span><span class="s5">'Age'</span><span class="s2">].</span><span class="s0">describe</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+### Wait Time Feature 
+ 
+A new variable, `wait_days`, was created to represent the number of days between when an appointment was scheduled and when it occurred. This feature is used to analyze whether longer wait times are associated with higher no-show rates. <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">] = (</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'appointment_day'</span><span class="s2">] - </span><span class="s0">df</span><span class="s2">[</span><span class="s5">'scheduled_day'</span><span class="s2">]).</span><span class="s0">dt</span><span class="s2">.</span><span class="s0">days</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">].</span><span class="s0">describe</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s2">(</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">] &lt; </span><span class="s3">0</span><span class="s2">).</span><span class="s0">sum</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df </span><span class="s2">= </span><span class="s0">df</span><span class="s2">[</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">] &gt;= </span><span class="s3">0</span><span class="s2">].</span><span class="s0">copy</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">].</span><span class="s0">describe</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+Records with negative wait times were removed, as these values indicate scheduling dates occurring after appointment dates and are not meaningful for analysis. <hr class="ls0">#%% md 
+### Data Cleaning Summary 
+ 
+The dataset was cleaned by standardizing column names, converting attendance and date variables to appropriate formats, removing invalid age values, and creating and validating a derived wait-time feature. These steps ensure the data is consistent and suitable for exploratory analysis. <hr class="ls0">#%% md 
+&lt;a id='eda'&gt;&lt;/a&gt; 
+### Exploratory Data Analysis Overview 
+ 
+This section explores patterns and relationships in the cleaned dataset to address the research questions. Both single-variable (1D) and multi-variable (2D) analyses are used to examine how patient and appointment characteristics are associated with appointment no-shows. 
+ 
+### What factors are associated with a higher likelihood of a patient not showing up for a scheduled medical appointment? <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">value_counts</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+overall_no_show_rate </span><span class="s2">= </span><span class="s0">df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">()</span>
+<span class="s0">overall_no_show_rate</span><hr class="ls0"><span class="s0">#%% md 
+### Single-Variable Exploration <hr class="ls0">#%% 
+format_bar_plot</span><span class="s2">(</span>
+    <span class="s0">df</span><span class="s2">[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">value_counts</span><span class="s2">(),</span>
+    <span class="s5">'Appointment Attendance Outcomes'</span><span class="s2">,</span>
+    <span class="s5">'No-show (0 = Attended, 1 = No-show)'</span><span class="s2">,</span>
+    <span class="s5">'Number of Appointments'</span>
+<span class="s2">)</span><hr class="ls0"><span class="s0">#%% md 
+The majority of scheduled appointments resulted in patient attendance. The overall no-show rate is approximately **28.5%**, indicating that a minority of appointments were missed. This baseline provides a reference point for comparing no-show rates across different patient and appointment characteristics in subsequent analyses. <hr class="ls0">#%% md 
+### Single-Variable Exploration <hr class="ls0">#%% 
+df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">].</span><span class="s0">hist</span><span class="s2">(</span><span class="s0">bins</span><span class="s2">=</span><span class="s3">30</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">title</span><span class="s2">(</span><span class="s5">'Distribution of Appointment Wait Times'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">xlabel</span><span class="s2">(</span><span class="s5">'Wait Time (days)'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">ylabel</span><span class="s2">(</span><span class="s5">'Number of Appointments'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">show</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+The distribution of appointment wait times is right-skewed, with most appointments scheduled within a short period after booking. However, a smaller number of appointments have substantially longer wait times, indicating meaningful variation in scheduling delays across patients. <hr class="ls0">#%% md 
+### No-show Rates by SMS Reminder Status <hr class="ls0">#%% 
+df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'sms_received'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+### Multiple-Variable Exploration <hr class="ls0">#%% 
+format_bar_plot</span><span class="s2">(</span>
+    <span class="s0">df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'sms_received'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">(),</span>
+    <span class="s5">'No-show Rate by SMS Reminder Status'</span><span class="s2">,</span>
+    <span class="s5">'SMS Received (0 = No, 1 = Yes)'</span><span class="s2">,</span>
+    <span class="s5">'No-show Rate'</span>
+<span class="s2">)</span><hr class="ls0"><span class="s0">#%% md 
+Appointments for which an SMS reminder was received show a different no-show rate compared to those without reminders. This suggests an association between SMS reminders and appointment attendance; however, this analysis does not establish causation. <hr class="ls0">#%% md 
+### No-show Rates by Appointment Wait Time <hr class="ls0">#%% 
+bins </span><span class="s2">= [</span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">3</span><span class="s2">, </span><span class="s3">7</span><span class="s2">, </span><span class="s3">14</span><span class="s2">, </span><span class="s3">30</span><span class="s2">, </span><span class="s3">180</span><span class="s2">]</span>
+<span class="s0">labels </span><span class="s2">= [</span><span class="s5">'Same day'</span><span class="s2">, </span><span class="s5">'1–3 days'</span><span class="s2">, </span><span class="s5">'4–7 days'</span><span class="s2">, </span><span class="s5">'8–14 days'</span><span class="s2">, </span><span class="s5">'15–30 days'</span><span class="s2">, </span><span class="s5">'Over 30 days'</span><span class="s2">]</span>
+
+<span class="s0">df</span><span class="s2">[</span><span class="s5">'wait_group'</span><span class="s2">] = </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">cut</span><span class="s2">(</span><span class="s0">df</span><span class="s2">[</span><span class="s5">'wait_days'</span><span class="s2">], </span><span class="s0">bins</span><span class="s2">=</span><span class="s0">bins</span><span class="s2">, </span><span class="s0">labels</span><span class="s2">=</span><span class="s0">labels</span><span class="s2">, </span><span class="s0">include_lowest</span><span class="s2">=</span><span class="s1">True</span><span class="s2">)</span><hr class="ls0"><span class="s0">#%% 
+df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'wait_group'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% md 
+### Multiple-Variable Exploration <hr class="ls0">#%% 
+format_bar_plot</span><span class="s2">(</span>
+    <span class="s0">df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'wait_group'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">(),</span>
+    <span class="s5">'No-show Rate by Appointment Wait Time'</span><span class="s2">,</span>
+    <span class="s5">'Appointment Wait Time'</span><span class="s2">,</span>
+    <span class="s5">'No-show Rate'</span><span class="s2">,</span>
+    <span class="s0">rotation</span><span class="s2">=</span><span class="s3">45</span>
+<span class="s2">)</span><hr class="ls0"><span class="s0">#%% md 
+Longer appointment wait times are associated with higher no-show rates. Appointments scheduled further in advance tend to have a greater proportion of missed visits compared to same-day or short-notice appointments. This pattern suggests that wait time may be an important factor related to appointment attendance, although causation cannot be inferred from this analysis. <hr class="ls0">#%% md 
+### No-show Rates by Scholarship Status <hr class="ls0">#%% 
+df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'Scholarship'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+df </span><span class="s2">= </span><span class="s0">df</span><span class="s2">.</span><span class="s0">rename</span><span class="s2">(</span><span class="s0">columns</span><span class="s2">={</span><span class="s5">'Scholarship'</span><span class="s2">: </span><span class="s5">'scholarship'</span><span class="s2">})</span><hr class="ls0"><span class="s0">#%% md 
+### Multiple-Variable Exploration <hr class="ls0">#%% 
+format_bar_plot</span><span class="s2">(</span>
+    <span class="s0">df</span><span class="s2">.</span><span class="s0">groupby</span><span class="s2">(</span><span class="s5">'scholarship'</span><span class="s2">)[</span><span class="s5">'no_show'</span><span class="s2">].</span><span class="s0">mean</span><span class="s2">(),</span>
+    <span class="s5">'No-show Rate by Scholarship Status'</span><span class="s2">,</span>
+    <span class="s5">'Scholarship (0 = No, 1 = Yes)'</span><span class="s2">,</span>
+    <span class="s5">'No-show Rate'</span>
+<span class="s2">)</span><hr class="ls0"><span class="s0">#%% md 
+Differences in no-show rates are observed between patients enrolled in the Bolsa Família scholarship program and those who are not. This suggests a potential association between socioeconomic factors and appointment attendance; however, this analysis does not establish causation. <hr class="ls0">#%% md 
+&lt;a id='conclusions'&gt;&lt;/a&gt; 
+## Conclusions 
+ 
+### Summary of Findings 
+ 
+This analysis investigated factors associated with patients missing scheduled medical appointments using a dataset of medical appointments in Brazil. The overall no-show rate was approximately 28.5%, indicating that missed appointments are relatively common. 
+ 
+Exploratory analysis suggested that appointment-related characteristics are associated with no-show behavior. Longer appointment wait times were associated with higher no-show rates, and differences were also observed based on whether patients received SMS reminders. These findings suggest that scheduling and communication factors may be related to appointment attendance. 
+ 
+### Limitations 
+ 
+This analysis has several limitations. The dataset is observational, so causal relationships cannot be established. Additionally, some potentially important factors—such as appointment urgency, transportation access, or prior patient behavior—were not available in the data. Data quality issues, including inconsistent scheduling dates, required the removal of some records, which may influence the results. 
+ 
+### Future Research 
+ 
+Future research could incorporate additional patient and appointment characteristics or apply predictive modeling techniques to better estimate no-show risk. Further investigation into reminder timing and message content could also provide insight into strategies for reducing missed appointments.</span></pre>
+</body>
+</html>
