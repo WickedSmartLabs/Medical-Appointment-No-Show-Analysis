@@ -50,7 +50,7 @@ Healthcare providers schedule thousands of appointments per month, but a meaning
 
 ## System Architecture
 
-![Analysis Architecture](images/noshow_pipeline_architecture.png)
+![Analysis Architecture](docs/noshow_pipeline_architecture.png)
 
 ```mermaid
 flowchart TD
